@@ -1,0 +1,640 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Animal House Obby: Preposition Quest</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f5f1e8;color:#292929}
+header{padding:12px;background:#fff;text-align:center;border-bottom:2px solid #e2dccf}
+h1{font-size:clamp(19px,4vw,28px);margin:4px}
+header p{margin:5px;font-size:13px}
+#layout{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:10px;padding:10px;max-width:1250px;margin:auto}
+#gamePanel{min-width:0}
+#game{width:100%;height:min(58vh,520px);min-height:300px;background:#cde4ee;border-radius:12px;overflow:hidden;position:relative}
+#game canvas{display:block;width:100%;height:100%;touch-action:none}
+#side{display:flex;flex-direction:column;gap:10px}
+.panel{background:#fff;padding:12px;border-radius:12px;border:1px solid #e3ded3}
+.panel h2{font-size:17px;margin:0 0 9px}
+#missionText{font-size:15px;line-height:1.5}
+#roomName{font-weight:bold;color:#4b7654}
+#score{font-size:24px;font-weight:bold}
+button,input{font:inherit}
+button{border:0;border-radius:9px;background:#416b50;color:white;padding:10px 12px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.45}
+button:focus-visible,input:focus-visible{outline:3px solid #e4ad4a}
+#startBtn{width:100%;margin-top:8px}
+#message{min-height:38px;font-size:14px;line-height:1.4;margin-top:8px}
+#wordBank,#answer{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.word{background:#e7efe5;color:#294c31;border:1px solid #c4d7c1;padding:9px 10px;border-radius:8px}
+#answer{background:#f4f1e9;min-height:44px;padding:6px;border-radius:8px}
+#answer .word{background:#fff}
+#controls{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,46px);gap:5px;justify-content:center;margin:12px auto}
+#controls button{padding:5px;font-size:20px;touch-action:none;user-select:none}
+#controls .empty{visibility:hidden}
+#actionButtons{display:flex;gap:6px;flex-wrap:wrap}
+#actionButtons button{flex:1}
+#leaderboard{font-size:13px;line-height:1.8;overflow-wrap:anywhere}
+#leaderboard div{border-bottom:1px solid #eee;padding:2px 0}
+#setup{max-width:520px;margin:16px auto;padding:15px;background:#fff;border-radius:12px}
+#setup input{width:100%;padding:11px;border:1px solid #bbb;border-radius:8px;margin:7px 0}
+#setup p{font-size:13px;line-height:1.5}
+#gameHelp{text-align:center;font-size:12px;color:#555;padding:5px}
+#error{display:none;background:#ffe5e5;color:#8a1111;padding:15px;margin:10px;border-radius:8px}
+@media(max-width:700px){
+ #layout{grid-template-columns:1fr;padding:7px}
+ #game{height:48vh;min-height:280px}
+ #side{display:grid;grid-template-columns:1fr}
+ .panel{padding:11px}
+ #controls{margin:8px auto}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>🐾 ANIMAL HOUSE OBBY</h1>
+  <p>PREPOSITION QUEST · Year 2 English</p>
+</header>
+
+<div id="error"></div>
+
+<section id="setup">
+  <h2>🏡 Welcome, Animal Explorer!</h2>
+  <label for="playerName">Your player name</label>
+  <input id="playerName" maxlength="20" placeholder="Enter your name">
+  <p>Explore the house, find the animals, and build the correct sentences using <b>in, on</b> and <b>under</b>.</p>
+  <button id="startBtn">▶ START GAME</button>
+</section>
+
+<main id="layout" style="display:none">
+  <section id="gamePanel">
+    <div id="game"></div>
+    <div id="gameHelp">Explore the house to find the animals. Move near them to start the sentence challenge.</div>
+
+    <div class="panel">
+      <h2>🎮 Movement Controls</h2>
+      <div id="controls">
+        <span class="empty">.</span>
+        <button data-move="forward" aria-label="Move forward">▲</button>
+        <span class="empty">.</span>
+        <button data-move="left" aria-label="Move left">◀</button>
+        <button data-move="back" aria-label="Move backward">▼</button>
+        <button data-move="right" aria-label="Move right">▶</button>
+      </div>
+      <div id="actionButtons">
+        <button id="jumpBtn">⬆ Jump</button>
+        <button id="findBtn">🔎 Find Animal</button>
+      </div>
+      <p style="font-size:12px">Computer: WASD or arrow keys to move; Space to jump.</p>
+    </div>
+  </section>
+
+  <aside id="side">
+    <section class="panel">
+      <h2>📜 Mission</h2>
+      <div id="missionCount">Mission 1 of 20</div>
+      <p id="roomName">Room: Living Room</p>
+      <div id="missionText">Find the animal!</div>
+      <div id="message" aria-live="polite">Explore the room to begin.</div>
+    </section>
+
+    <section class="panel">
+      <h2>⭐ Your Score</h2>
+      <div id="score">0 / 2000</div>
+      <div id="progressText">0 missions completed</div>
+    </section>
+
+    <section class="panel" id="challenge" style="display:none">
+      <h2>🧩 Build the Sentence</h2>
+      <p style="font-size:13px">Tap the words in the correct order. Tap a word in your answer to remove it.</p>
+      <div><b>Choose the words:</b></div>
+      <div id="wordBank"></div>
+      <div style="margin-top:12px"><b>Your sentence:</b></div>
+      <div id="answer"></div>
+      <div id="actionButtons" style="margin-top:10px">
+        <button id="checkBtn">Check Answer</button>
+        <button id="clearBtn" style="background:#777">Clear</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>🏆 Top 20 Scoreboard</h2>
+      <div id="leaderboard">No completed games yet.</div>
+      <p style="font-size:11px;color:#666">Scores are saved in this browser on this device only.</p>
+    </section>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+(() => {
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+const missions = [
+ {s:"There is a cat on the bed.",r:"Bedroom",a:"cat",n:1,p:"on",o:"bed"},
+ {s:"There are two ducks in the bathtub.",r:"Bathroom",a:"duck",n:2,p:"in",o:"bathtub"},
+ {s:"There is a spider under the chair.",r:"Living Room",a:"spider",n:1,p:"under",o:"chair"},
+ {s:"There are three rats on the sofa.",r:"Living Room",a:"rat",n:3,p:"on",o:"sofa"},
+ {s:"There is a dog in the box.",r:"Bedroom",a:"dog",n:1,p:"in",o:"box"},
+ {s:"There are four elephants under the table.",r:"Dining Room",a:"elephant",n:4,p:"under",o:"table"},
+ {s:"There is a duck on the chair.",r:"Dining Room",a:"duck",n:1,p:"on",o:"chair"},
+ {s:"There are five spiders in the basket.",r:"Bedroom",a:"spider",n:5,p:"in",o:"basket"},
+ {s:"There is a rat under the bed.",r:"Bedroom",a:"rat",n:1,p:"under",o:"bed"},
+ {s:"There are two cats on the sofa.",r:"Living Room",a:"cat",n:2,p:"on",o:"sofa"},
+ {s:"There is an elephant in the room.",r:"Living Room",a:"elephant",n:1,p:"in",o:"room"},
+ {s:"There are three dogs under the table.",r:"Dining Room",a:"dog",n:3,p:"under",o:"table"},
+ {s:"There is a lizard on the box.",r:"Kitchen",a:"lizard",n:1,p:"on",o:"box"},
+ {s:"There are four frogs in the bathtub.",r:"Bathroom",a:"frog",n:4,p:"in",o:"bathtub"},
+ {s:"There is a frog under the chair.",r:"Kitchen",a:"frog",n:1,p:"under",o:"chair"},
+ {s:"There are five lizards on the table.",r:"Kitchen",a:"lizard",n:5,p:"on",o:"table"},
+ {s:"There is a spider in the basket.",r:"Living Room",a:"spider",n:1,p:"in",o:"basket"},
+ {s:"There are two rats under the bed.",r:"Bedroom",a:"rat",n:2,p:"under",o:"bed"},
+ {s:"There is a duck in the bathtub.",r:"Bathroom",a:"duck",n:1,p:"in",o:"bathtub"},
+ {s:"There are three elephants on the platform.",r:"Living Room",a:"elephant",n:3,p:"on",o:"platform"}
+];
+
+let scene,camera,renderer,player,clock;
+let started=false,missionIndex=0,score=0,found=false,completed=false;
+let playerName="Player",animalGroup=null,targetPosition=null;
+let challengeWords=[],answerWords=[];
+let held={forward:false,back:false,left:false,right:false};
+let velocityY=0,onGround=true;
+const roomCenters={
+ "Living Room":{x:0,z:0},
+ "Bedroom":{x:-9,z:0},
+ "Kitchen":{x:9,z:0},
+ "Bathroom":{x:0,z:-9},
+ "Dining Room":{x:0,z:9}
+};
+const animalColours={
+ cat:0x777c83,dog:0xc58b51,duck:0xf3d447,spider:0x3c3431,
+ rat:0x99959a,elephant:0x929da8,lizard:0x55a35a,frog:0x4d9b45
+};
+const furniture={};
+const animalMeshes=[];
+
+function showError(msg){
+ $("error").style.display="block";
+ $("error").textContent=msg;
+}
+function material(colour){
+ return new THREE.MeshStandardMaterial({color:colour,roughness:.88});
+}
+function cube(parent,x,y,z,w,h,d,colour){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material(colour));
+ mesh.position.set(x,y,z);
+ mesh.castShadow=true;
+ mesh.receiveShadow=true;
+ parent.add(mesh);
+ return mesh;
+}
+function sphere(parent,x,y,z,rx,ry,rz,colour){
+ const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,12,10),material(colour));
+ mesh.position.set(x,y,z);
+ mesh.scale.set(rx,ry,rz);
+ mesh.castShadow=true;
+ parent.add(mesh);
+ return mesh;
+}
+function floor(x,z,colour){
+ cube(scene,x,-.18,z,9,.36,9,colour);
+}
+function wallX(x,z,w=9){
+ cube(scene,x,1.35,z,w,2.7,.2,0xf1e7d4);
+}
+function wallZ(x,z,w=9){
+ cube(scene,x,1.35,z,.2,2.7,w,0xf1e7d4);
+}
+function segmentedWallX(x,z,opening=true){
+ if(!opening){wallX(x,z);return;}
+ wallX(x,z-3.4,2.2);
+ wallX(x,z+3.4,2.2);
+ cube(scene,x,2.45,z,2.2,.5,.2,0xf1e7d4);
+}
+function segmentedWallZ(x,z,opening=true){
+ if(!opening){wallZ(x,z);return;}
+ wallZ(x-3.4,z,2.2);
+ wallZ(x+3.4,z,2.2);
+ cube(scene,x,2.45,z,.2,.5,2.2,0xf1e7d4);
+}
+function buildRoom(name,c){
+ const col=name==="Bedroom"?0xd9c6ad:
+ name==="Kitchen"?0xd2e0c6:
+ name==="Bathroom"?0xc7e0e7:
+ name==="Dining Room"?0xe6d5b9:0xd8d8cc;
+ floor(c.x,c.z,col);
+ // Every room has an open doorway facing the Living Room.
+ const doorSide={
+  "Living Room":["left","right","north","south"],
+  "Bedroom":["right"],
+  "Kitchen":["left"],
+  "Bathroom":["south"],
+  "Dining Room":["north"]
+ }[name];
+ segmentedWallX(c.x-4.5,c.z,doorSide.includes("left"));
+ segmentedWallX(c.x+4.5,c.z,doorSide.includes("right"));
+ segmentedWallZ(c.x,c.z-4.5,doorSide.includes("north"));
+ segmentedWallZ(c.x,c.z+4.5,doorSide.includes("south"));
+ // A sign beside the doorway identifies the room.
+ const sign=cube(scene,c.x,2.35,c.z-3.85,1.8,.45,.12,0xffffff);
+ sign.material=material(0xffffff);
+}
+function createFurniture(){
+ // Bedroom
+ cube(scene,-9,.28,-.5,3.2,.45,2,0x8a6045);
+ cube(scene,-9,.64,-.5,3,.35,1.8,0xe7d8bc);
+ cube(scene,-9,.9,-.5,1.1,.18,.65,0xf7f0dc);
+ cube(scene,-12,.38,1.7,1.15,.75,1.05,0xb88b59);
+ cube(scene,-12,.78,1.7,1.2,.12,1.1,0xc69a68);
+ // Bedroom basket
+ makeBasket(-7.3,.05,2.1);
+ // Bathroom bathtub
+ cube(scene,0,.35,-10.8,3.1,.7,1.8,0xf6f6f0);
+ cube(scene,0,.67,-10.8,2.65,.12,1.35,0x8ccedc);
+ // Kitchen table and box
+ cube(scene,9,1.05,0,2.1,.22,1.6,0x9c7049);
+ for(const x of [8.15,9.85])for(const z of [-.55,.55])
+  cube(scene,x,.48,z,.13,.95,.13,0x795336);
+ cube(scene,12,.4,1.7,1.15,.8,1.05,0xb88b59);
+ cube(scene,12,.82,1.7,1.2,.12,1.1,0xc69a68);
+ // Kitchen chair
+ makeChair(7.2,.05,1.7);
+ // Living room sofa
+ cube(scene,-1,.55,-2.4,3.1,1,1.15,0x678b77);
+ cube(scene,-1,1,-2.85,3.1,.75,.28,0x678b77);
+ cube(scene,-2.4,.85,-2.35,.3,.8,1.1,0x547460);
+ cube(scene,.4,.85,-2.35,.3,.8,1.1,0x547460);
+ // Living room chair and platform
+ makeChair(2.5,.05,.1);
+ makeBasket(2.4,.05,1.8);
+ cube(scene,1.7,.35,2.65,2.1,.7,1.2,0xb89a74);
+ // Dining table and chairs
+ cube(scene,0,1.05,9,2.7,.22,1.7,0x9c7049);
+ for(const x of [-1,1])for(const z of [8.45,9.55])
+  cube(scene,x,.48,z,.13,.95,.13,0x795336);
+ makeChair(2.1,.05,9.2);
+}
+function makeChair(x,y,z){
+ cube(scene,x,y+.8,z,.95,.18,.85,0xb68a59);
+ cube(scene,x,y+1.25,z-.34,.95,.85,.16,0xb68a59);
+ for(const dx of [-.36,.36])for(const dz of [-.3,.3])
+  cube(scene,x+dx,y+.38,z+dz,.1,.75,.1,0x8b6746);
+}
+function makeBasket(x,y,z){
+ // Open-topped basket; animals are visible inside the rim.
+ cube(scene,x,y+.32,z,.95,.55,.95,0xb58b58);
+ cube(scene,x,y+.62,z,.99,.12,.99,0xc79a63);
+ cube(scene,x,y+.61,z,.67,.07,.67,0x59422e);
+}
+function makeAvatar(){
+ const g=new THREE.Group();
+ cube(g,0,.65,0,.55,.75,.35,0x3d83bc);
+ sphere(g,0,1.2,0,.29,.29,.29,0xf0c59e);
+ cube(g,-.34,.67,0,.16,.65,.17,0x3d83bc);
+ cube(g,.34,.67,0,.16,.65,.17,0x3d83bc);
+ cube(g,-.17,.18,0,.18,.35,.2,0x35415b);
+ cube(g,.17,.18,0,.18,.35,.2,0x35415b);
+ sphere(g,-.1,1.23,.25,.035,.04,.025,0x222222);
+ sphere(g,.1,1.23,.25,.035,.04,.025,0x222222);
+ scene.add(g);
+ return g;
+}
+function createAnimal(parent,type,x,y,z,scale=1){
+ const g=new THREE.Group();
+ const c=animalColours[type]||0x999999;
+ const dark=0x383838;
+ if(type==="spider"){
+  sphere(g,0,.23,0,.22,.2,.22,c);
+  sphere(g,0,.34,.13,.12,.12,.12,dark);
+  for(let i=0;i<8;i++){
+   const side=i<4?-1:1;
+   const j=i%4;
+   const leg=cube(g,side*(.2+j*.035),.17,(j-1.5)*.13,.3,.055,.055,dark);
+   leg.rotation.z=side*.35;
+  }
+ }else if(type==="lizard"){
+  sphere(g,0,.2,0,.28,.13,.15,c);
+  sphere(g,.23,.24,.04,.14,.12,.12,c);
+  cube(g,-.3,.17,0,.35,.07,.07,c);
+  for(const sx of [-1,1])for(const sz of [-1,1])
+   cube(g,sx*.16,.08,sz*.13,.09,.12,.09,c);
+ }else{
+  sphere(g,0,.25,0,.28,.22,.22,c);
+  sphere(g,.2,.39,.03,.18,.17,.17,c);
+  sphere(g,.29,.38,.16,.09,.07,.07,c);
+  if(type==="cat"||type==="rat"){
+   sphere(g,.1,.57,-.06,.08,.12,.07,c);
+   sphere(g,.29,.57,-.06,.08,.12,.07,c);
+  }
+  if(type==="dog"){
+   sphere(g,.08,.4,-.12,.08,.16,.09,c);
+   sphere(g,.32,.4,-.12,.08,.16,.09,c);
+  }
+  if(type==="duck"){
+   sphere(g,.31,.36,.17,.12,.055,.07,0xe99a36);
+   sphere(g,.15,.57,.02,.07,.07,.07,0xffffff);
+   sphere(g,.17,.57,.08,.03,.035,.03,dark);
+  }else{
+   sphere(g,.24,.43,.16,.025,.03,.025,dark);
+  }
+  if(type==="elephant"){
+   sphere(g,.33,.28,.17,.07,.17,.07,c);
+   sphere(g,.41,.15,.2,.055,.13,.055,c);
+   sphere(g,.05,.36,-.11,.16,.18,.07,c);
+  }
+  if(type==="frog"){
+   sphere(g,.12,.55,-.02,.08,.08,.08,c);
+   sphere(g,.27,.55,-.02,.08,.08,.08,c);
+   sphere(g,.13,.56,.04,.025,.03,.025,dark);
+   sphere(g,.28,.56,.04,.025,.03,.025,dark);
+  }
+  if(type==="rat"){
+   cube(g,-.35,.18,-.05,.3,.035,.035,0xd49da2);
+  }
+ }
+ g.position.set(x,y,z);
+ g.scale.setScalar(scale);
+ parent.add(g);
+ return g;
+}
+function makeTargetPosition(m){
+ const c=roomCenters[m.r];
+ const pos={
+  bed:{x:-9,y:1.02,z:-.5},
+  bathtub:{x:0,y:.88,z:-10.8},
+  chair:{x:m.r==="Kitchen"?7.2:m.r==="Dining Room"?2.1:2.5,
+         y:1.02,z:m.r==="Kitchen"?1.7:m.r==="Dining Room"?9.2:.1},
+  sofa:{x:-1,y:1.08,z:-2.4},
+  box:{x:m.r==="Kitchen"?12:-12,y:.83,z:1.7},
+  table:{x:m.r==="Kitchen"?9:0,y:1.2,z:m.r==="Kitchen"?0:9},
+  basket:{x:m.r==="Living Room"?2.4:-7.3,y:.65,z:m.r==="Living Room"?1.8:2.1},
+  platform:{x:1.7,y:.72,z:2.65},
+  room:{x:0,y:.05,z:0}
+ };
+ const p=pos[m.o]||{x:c.x,y:.2,z:c.z};
+ if(m.p==="under"){
+  if(m.o==="bed")return{x:-9,y:.16,z:.2};
+  if(m.o==="table")return{x:m.r==="Kitchen"?9:0,y:.16,z:m.r==="Kitchen"?0:9};
+  if(m.o==="chair")return{x:m.r==="Kitchen"?7.2:m.r==="Dining Room"?2.1:2.5,y:.16,z:m.r==="Kitchen"?1.7:m.r==="Dining Room"?9.2:.1};
+ }
+ if(m.p==="in"){
+  if(m.o==="box")return{x:p.x,y:.64,z:p.z};
+  if(m.o==="basket")return{x:p.x,y:.38,z:p.z};
+  if(m.o==="bathtub")return{x:0,y:.78,z:-10.8};
+ }
+ if(m.p==="on"){
+  if(m.o==="bed")return{x:p.x,y:1.12,z:p.z};
+  if(m.o==="sofa")return{x:p.x,y:1.12,z:p.z};
+  if(m.o==="chair")return{x:p.x,y:1.13,z:p.z};
+  if(m.o==="table")return{x:p.x,y:1.22,z:p.z};
+  if(m.o==="box")return{x:p.x,y:1.02,z:p.z};
+  if(m.o==="platform")return{x:p.x,y:.76,z:p.z};
+ }
+ return p;
+}
+function spawnMissionAnimal(){
+ if(animalGroup)scene.remove(animalGroup);
+ animalMeshes.length=0;
+ const m=missions[missionIndex];
+ targetPosition=makeTargetPosition(m);
+ animalGroup=new THREE.Group();
+ const count=m.n;
+ const cols=Math.min(3,count);
+ for(let i=0;i<count;i++){
+  const col=i%cols,row=Math.floor(i/cols);
+  const x=targetPosition.x+(col-(cols-1)/2)*.48;
+  const z=targetPosition.z+(row-(Math.ceil(count/cols)-1)/2)*.4;
+  const a=createAnimal(animalGroup,m.a,x-targetPosition.x,targetPosition.y,z-targetPosition.z,.8);
+  animalMeshes.push(a);
+ }
+ animalGroup.position.set(targetPosition.x,0,targetPosition.z);
+ scene.add(animalGroup);
+ found=false;
+ $("challenge").style.display="none";
+ $("missionText").textContent="Find the animal and explore the room!";
+ $("roomName").textContent="Room: "+m.r;
+ $("missionCount").textContent="Mission "+(missionIndex+1)+" of 20";
+ $("message").textContent="Move around and look carefully.";
+}
+function init3D(){
+ if(!window.THREE)throw new Error("Three.js could not load. Check your internet connection and refresh.");
+ const host=$("game");
+ scene=new THREE.Scene();
+ scene.background=new THREE.Color(0xcce4ed);
+ scene.fog=new THREE.Fog(0xcce4ed,24,60);
+ camera=new THREE.PerspectiveCamera(55,host.clientWidth/host.clientHeight,.1,150);
+ renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));
+ renderer.setSize(host.clientWidth,host.clientHeight);
+ renderer.shadowMap.enabled=true;
+ host.appendChild(renderer.domElement);
+ scene.add(new THREE.HemisphereLight(0xffffff,0x85765e,2));
+ const light=new THREE.DirectionalLight(0xffffff,2);
+ light.position.set(-8,18,8);
+ light.castShadow=true;
+ scene.add(light);
+ for(const [name,c] of Object.entries(roomCenters))buildRoom(name,c);
+ createFurniture();
+ player=makeAvatar();
+ player.position.set(0,0,0);
+ clock=new THREE.Clock();
+ spawnMissionAnimal();
+ window.addEventListener("resize",resize);
+ renderer.domElement.addEventListener("pointerdown",()=>renderer.domElement.focus());
+ animate();
+}
+function resize(){
+ if(!renderer)return;
+ const host=$("game");
+ camera.aspect=host.clientWidth/host.clientHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(host.clientWidth,host.clientHeight);
+}
+function animate(){
+ requestAnimationFrame(animate);
+ if(!renderer||!player)return;
+ const dt=Math.min(clock.getDelta(),.04);
+ if(started&&!completed){
+  let dx=0,dz=0;
+  if(held.forward||keys.has("w")||keys.has("arrowup"))dz-=1;
+  if(held.back||keys.has("s")||keys.has("arrowdown"))dz+=1;
+  if(held.left||keys.has("a")||keys.has("arrowleft"))dx-=1;
+  if(held.right||keys.has("d")||keys.has("arrowright"))dx+=1;
+  const len=Math.hypot(dx,dz);
+  if(len){dx/=len;dz/=len;player.position.x+=dx*4.2*dt;player.position.z+=dz*4.2*dt;}
+  velocityY-=12*dt;
+  player.position.y+=velocityY*dt;
+  if(player.position.y<=0){player.position.y=0;velocityY=0;onGround=true;}
+  // Keep the avatar inside the five connected rooms.
+  player.position.x=Math.max(-13.1,Math.min(13.1,player.position.x));
+  player.position.z=Math.max(-13.1,Math.min(13.1,player.position.z));
+  camera.position.set(player.position.x+7,player.position.y+12,player.position.z+14);
+  camera.lookAt(player.position.x,player.position.y+.5,player.position.z);
+ }
+ renderer.render(scene,camera);
+}
+const keys=new Set();
+document.addEventListener("keydown",e=>{
+ const k=e.key.toLowerCase();
+ if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k))e.preventDefault();
+ keys.add(k);
+ if(k===" "&&started)jump();
+});
+document.addEventListener("keyup",e=>keys.delete(e.key.toLowerCase()));
+function jump(){if(onGround&&started){velocityY=5;onGround=false;}}
+$("jumpBtn").addEventListener("click",jump);
+document.querySelectorAll("[data-move]").forEach(btn=>{
+ const dir=btn.dataset.move;
+ const down=e=>{e.preventDefault();held[dir]=true;};
+ const up=e=>{e.preventDefault();held[dir]=false;};
+ btn.addEventListener("pointerdown",down);
+ btn.addEventListener("pointerup",up);
+ btn.addEventListener("pointerleave",up);
+ btn.addEventListener("pointercancel",up);
+});
+
+function findAnimal(){
+ if(!started||completed)return;
+ const m=missions[missionIndex];
+ const dx=player.position.x-targetPosition.x;
+ const dz=player.position.z-targetPosition.z;
+ if(Math.hypot(dx,dz)>2.4){
+  $("message").textContent="Not close enough yet. Keep exploring the "+m.r+"!";
+  return;
+ }
+ if(found){
+  $("message").textContent="You found the animal! Build the sentence.";
+  return;
+ }
+ found=true;
+ $("challenge").style.display="block";
+ $("message").textContent="Great finding! Now build the correct sentence.";
+ $("missionText").textContent="You found "+m.n+" "+m.a+(m.n===1?"":"s")+"! Build the sentence.";
+ challengeWords=m.s.replace(/[.]/g,"").split(" ");
+ for(let i=challengeWords.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  [challengeWords[i],challengeWords[j]]=[challengeWords[j],challengeWords[i]];
+ }
+ answerWords=[];
+ renderWords();
+}
+function renderWords(){
+ const bank=$("wordBank"),answer=$("answer");
+ bank.innerHTML="";
+ answer.innerHTML="";
+ challengeWords.forEach((w,i)=>{
+  const b=document.createElement("button");
+  b.className="word";b.textContent=w;
+  b.addEventListener("click",()=>{
+   challengeWords.splice(i,1);
+   answerWords.push(w);
+   renderWords();
+  });
+  bank.appendChild(b);
+ });
+ answerWords.forEach((w,i)=>{
+  const b=document.createElement("button");
+  b.className="word";b.textContent=w;
+  b.title="Tap to return this word";
+  b.addEventListener("click",()=>{
+   answerWords.splice(i,1);
+   challengeWords.push(w);
+   renderWords();
+  });
+  answer.appendChild(b);
+ });
+}
+$("findBtn").addEventListener("click",findAnimal);
+$("checkBtn").addEventListener("click",checkAnswer);
+$("clearBtn").addEventListener("click",()=>{
+ challengeWords.push(...answerWords);
+ answerWords=[];
+ renderWords();
+});
+function checkAnswer(){
+ if(!found||completed)return;
+ const m=missions[missionIndex];
+ const typed=answerWords.join(" ").replace(/[.!?]+$/,"").trim().toLowerCase();
+ const correct=m.s.replace(/[.!?]+$/,"").trim().toLowerCase();
+ if(typed!==correct){
+  $("message").textContent="Not quite! Check the word order and try again.";
+  return;
+ }
+ score+=100;
+ $("score").textContent=score+" / 2000";
+ $("progressText").textContent=(missionIndex+1)+" missions completed";
+ $("message").textContent="✅ Correct! "+m.s;
+ $("missionText").textContent=m.s;
+ $("checkBtn").disabled=true;
+ if(missionIndex===19){
+  completed=true;
+  saveScore();
+  $("message").textContent="🎉 Amazing! You completed all 20 missions with "+score+" points!";
+  $("missionText").textContent="Game completed! Well done, "+playerName+"!";
+  $("missionCount").textContent="20 of 20 complete";
+  $("challenge").style.display="none";
+  $("gameHelp").textContent="You completed the quest! Refresh to start a new game.";
+  return;
+ }
+ setTimeout(()=>{
+  missionIndex++;
+  $("checkBtn").disabled=false;
+  spawnMissionAnimal();
+ },1300);
+}
+function getScores(){
+ try{
+  const x=JSON.parse(localStorage.getItem("animalHouseObbyScores")||"[]");
+  return Array.isArray(x)?x:[];
+ }catch(e){return [];}
+}
+function saveScore(){
+ if(!completed)return;
+ const scores=getScores();
+ scores.push({name:playerName,score:score,date:new Date().toLocaleDateString()});
+ scores.sort((a,b)=>b.score-a.score);
+ const top=scores.slice(0,20);
+ try{localStorage.setItem("animalHouseObbyScores",JSON.stringify(top));}
+ catch(e){$("message").textContent+=" Score saving is unavailable in this browser.";}
+ renderLeaderboard();
+}
+function escapeHTML(str){
+ return String(str).replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
+}
+function renderLeaderboard(){
+ const scores=getScores();
+ $("leaderboard").innerHTML=scores.length?
+  scores.slice(0,20).map((s,i)=>
+   "<div>"+(i+1)+". <b>"+escapeHTML(s.name)+"</b> — "+Number(s.score||0)+" pts</div>"
+  ).join(""):"No completed games yet.";
+}
+$("startBtn").addEventListener("click",()=>{
+ if(started)return;
+ playerName=$("playerName").value.trim().slice(0,20)||"Player";
+ $("setup").style.display="none";
+ $("layout").style.display="grid";
+ try{
+  init3D();
+  started=true;
+  $("message").textContent="Find the animal in the "+missions[0].r+".";
+ }catch(e){
+  showError("The game could not start: "+e.message+" Please check your connection and reload the page.");
+  $("setup").style.display="block";
+  $("layout").style.display="none";
+  console.error(e);
+ }
+});
+renderLeaderboard();
+})();
+</script>
+</body>
+</html>
